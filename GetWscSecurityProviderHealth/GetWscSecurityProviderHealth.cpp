@@ -1,20 +1,62 @@
-﻿// GetWscSecurityProviderHealth.cpp : このファイルには 'main' 関数が含まれています。プログラム実行の開始と終了がそこで行われます。
-//
+﻿// GetWscSecurityProviderHealth.cpp : This source contains 'main' function.
+// Copyright: 2021 Mitsutoshi Nakano <bkbin005@rinku.zaq.ne.jp>
+// SPDX-License-Identifier: MIT
 
 #include <iostream>
+#include <cstdlib>
+#include <windows.h>
+#include <wscapi.h>
+#include <winerror.h>
 
-int main()
+/// <summary>
+/// Get WSC Providers from commandline arguments.
+/// </summary>
+/// <param name="argc">main()'s argc.</param>
+/// <param name="argv">main()'s argv</param>
+/// <returns>Security Providers.</returns>
+static unsigned long
+GetProviders(int argc, char *argv[])
 {
-    std::cout << "Hello World!\n";
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " {WSC_SECURITY_PROVIDER(hex)}\n";
+        exit(ERROR_BAD_ARGUMENTS);
+    }
+    char *endp;
+    return strtoul(argv[1], &endp, 16);
 }
 
-// プログラムの実行: Ctrl + F5 または [デバッグ] > [デバッグなしで開始] メニュー
-// プログラムのデバッグ: F5 または [デバッグ] > [デバッグの開始] メニュー
+/// <summary>
+/// Print Windows Security Center's Health.
+/// </summary>
+/// <param name="providers">WSC Security Providers.</param>
+/// <param name="health">Health status.</param>
+/// <returns>See https://docs.microsoft.com/en-us/windows/win32/api/wscapi/nf-wscapi-wscgetsecurityproviderhealth .</returns>
+static HRESULT
+PrintHealth(DWORD providers, WSC_SECURITY_PROVIDER_HEALTH *health)
+{
+    HRESULT result;
+    if ((result = WscGetSecurityProviderHealth((DWORD)providers, health)) != S_OK) {
+        std::cerr << "Result: " << result << "\n" << "health: " << *health << "\n";
+        return result;
+    }
+    std::cout << "health: " << *health << "\n";
+    return S_OK;
+}
 
-// 作業を開始するためのヒント: 
-//    1. ソリューション エクスプローラー ウィンドウを使用してファイルを追加/管理します 
-//   2. チーム エクスプローラー ウィンドウを使用してソース管理に接続します
-//   3. 出力ウィンドウを使用して、ビルド出力とその他のメッセージを表示します
-//   4. エラー一覧ウィンドウを使用してエラーを表示します
-//   5. [プロジェクト] > [新しい項目の追加] と移動して新しいコード ファイルを作成するか、[プロジェクト] > [既存の項目の追加] と移動して既存のコード ファイルをプロジェクトに追加します
-//   6. 後ほどこのプロジェクトを再び開く場合、[ファイル] > [開く] > [プロジェクト] と移動して .sln ファイルを選択します
+/// <summary>
+/// Print Windows Security Center's status.
+/// </summary>
+/// <param name="argc">&gt; 2</param>
+/// <param name="argv">argv[1]: WSC_SECURITY_PROVIDER(hex),
+/// see https://docs.microsoft.com/en-us/windows/win32/api/wscapi/ne-wscapi-wsc_security_provider .</param>
+/// <returns>See https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes </returns>
+int
+main(int argc, char *argv[])
+{
+    unsigned long providers = GetProviders(argc, argv);
+    WSC_SECURITY_PROVIDER_HEALTH health;
+    if (PrintHealth(providers, &health) != S_OK) {
+        return ERROR_BAD_ENVIRONMENT;
+    }
+    return 0;
+}
